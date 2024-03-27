@@ -81,7 +81,7 @@ class BookManager
 		global $countReservations; //telt reserveringen (eigenlijk: gereserveerde tafels) op bepaald tijdstip (zie: Table::checkForValidReservation()
 		$countReservations = 0;
 		global $numberCorresponds;
-		// global $toomuch;//is niet meer nodig, want BookManager::countSplits() heeft deze functionaliteit min of meer overgenomen (zie ook comment Table::checkForValidReservation($reservation), waar $toomuch eerst werd vastgesteld)
+		global $toomuch; //is niet meer nodig, want BookManager::countSplits() heeft deze functionaliteit min of meer overgenomen (zie ook comment Table::checkForValidReservation($reservation), waar $toomuch eerst werd vastgesteld)
 		$onetwo = 0; //TESTVARIABELE
 		$numberCorresponds = True;
 		global $countReservedTablesForSix;
@@ -129,6 +129,21 @@ class BookManager
 					if ($rest == 0) {
 						break;
 					}
+				} else if ($countReservedTablesForTwo === TableForTwo::$count && $rest > 0 && $rest <= 2) { //ALS alle 2-persoonstafels gereserveerd zijn EN $rest = 1 of 2 (gaat de if niet meer op): pak DAN de tafel die voorhanden is
+					// if ($firstSplit == True) {//waarschijnlijk niet nodig, omdat hij hier pas komt op het moment dat de $firstSplit een feit is EN het laatste $restje een plek zoekt
+					$table->addReservation($SplitReservation);
+					echo "Tafel " . $table->getTableNumber() . " voor " . $table->getPersonsCount() . " personen gereserveerd voor "
+						. $reservation->getGuest()->getFullName()
+						. " op " . $reservation->getStartDate()->format("d-m-y") . " om " . $reservation->getStartDate()->format("H:i") . " uur. (reservation-id: " . $reservation->getID() . "/ aantal tafels: " . $reservation->getSplitCount() . ")<br>";
+					if ($table->getPersonsCount() == 6) {
+						$countReservedTablesForSix += 1; //omdat de Bookmanager::countReservedTables() methode niet nog eens wordt uitgevoerd, terwijl de $countR(etc.) in deze bookTable() methode bij het loopen over de $tables array nodig is mbt if/then
+					} else if ($table->getPersonsCount() == 4) {
+						$countReservedTablesForFour += 1; //idem (zie hierboven)
+						// } else if ($table->getPersonsCount() == 2) { // niet nodig: $countReservedTablesForTwo === TableForTwo::$count
+						// 	$countReservedTablesForTwo += 1;
+					}
+					$rest = $rest - $rest; //het laatste $restje kan weg (is waarschijnlijk ook niet nodig: de break alleen was genoeg geweest)
+					break;
 				}
 			} else if ($check == False && $numberCorresponds == True) {
 				$table->addReservation($reservation);
@@ -136,7 +151,7 @@ class BookManager
 					. $reservation->getGuest()->getFullName()
 					. " op " . $reservation->getStartDate()->format("d-m-y") . " om " . $reservation->getStartDate()->format("H:i") . " uur.";
 				break;
-				// } else if ($check == False && $numberCorresponds == False && $toomuch == True) { //dit scenario doet zich bijv. voor wanneer alle tafels voor 6 zijn gereserveerd, maar er nog wel tafels voor 4 en/of 2 beschikbaar zijn.
+			} else if ($check == False && $numberCorresponds == False && $toomuch == True) { //dit scenario doet zich bijv. voor wanneer alle tafels voor 6 zijn gereserveerd, maar er nog wel tafels voor 4 en/of 2 beschikbaar zijn.
 				// 	// if ($reservation->getNumberOfGuests() > 6) {
 				// 	// 	//LET OP: reserveringen boven de 6 personen worden niet doorgezet, maar krijgen onderstaande melding REDEN: padafkhankelijkheid/incrementalisme (voortbordurend op eerder gemaakte keuzes is de 'technical debt' wat te hoog opgelopen om dit reserveersysteempje eenvoudig aan te passen - het zou eigenlijk opnieuw doordacht moeten worden maar mijn 'budget' is op...)
 				// 	// 	Reservation::$count--; // als reserveren niet mogelijk is, wordt de reservering niet geteld (BELANGRIJK: omdat het aanmaken van de Reservation $id gekoppeld is aan de $count)
@@ -216,10 +231,10 @@ class BookManager
 				// 			break;
 				// 		}
 				// 	}
-
-				echo "Helaas zijn er geen tafels voor " . $reservation->getNumberOfGuests() . " personen meer beschikbaar op dit tijdstip.";
-				break;
-			} else if ($check == False && $numberCorresponds == False /*&& $toomuch == False//is niet meer nodig (zie o.a. comment Table::checkForValidReservation($reservation) )*/) { //bijv. reservering voor 1 of 2 personen van een 4 of 6 persoonstafel of reservering voor 3/4 personen van een 6 persoonstafel (en uiteindelijk ook reservering 1/2 personen van 6-persoonstafel, zie comment hieronder bij LET OP)
+				// DEZE echo STAAT HIER VOLLEDIG NUTTELOOS ONDER EEN BREAK (de break boven het eerder weggecommente deel) EN is sowieso NIET NODIG nu reserveringen ALLEMAAL worden opgesplitst):
+				// echo "Helaas zijn er geen tafels voor " . $reservation->getNumberOfGuests() . " personen meer beschikbaar op dit tijdstip.";
+				// break;
+			} else if ($check == False && $numberCorresponds == False && $toomuch == False) { //is niet meer nodig (zie o.a. comment Table::checkForValidReservation($reservation) )*/) { //bijv. reservering voor 1 of 2 personen van een 4 of 6 persoonstafel of reservering voor 3/4 personen van een 6 persoonstafel (en uiteindelijk ook reservering 1/2 personen van 6-persoonstafel, zie comment hieronder bij LET OP)
 				if ($countReservedTablesForFour < TableForFour::$count && $countReservedTablesForTwo == TableForTwo::$count && $reservation->getNumberOfGuests() >= -3 + $table->getPersonsCount()) { //oftewel: als alle 2 persoonstafels gereserveerd zijn, pak dan een 4 persoonstafel (ook in geval 1 persoonsreservering)
 					$table->addReservation($reservation);
 					echo "Tafel " . $table->getTableNumber() . " voor " . $table->getPersonsCount() . " personen gereserveerd voor "
